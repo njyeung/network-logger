@@ -1,0 +1,48 @@
+npm install @react-native-community/netinfo @react-native-async-storage/async-storage
+
+import { NetworkLogger } from './NetworkLogger';
+
+const networkLogger = new NetworkLogger({
+  serverUrl: 'http://your-server.com',
+  uploadEndpoint: '/api/logs/network',
+  sessionContextProvider: () => ({
+    userId: getCurrentUserId(),
+    sessionId: getSessionId()
+  })
+});
+
+networkLogger.start();
+
+METHODS:
+- start() - Begin monitoring
+- stop() - Stop monitoring  
+- setServerConnectionStatus(true/false) - Update server status
+- uploadLogs() - Upload to server & clear local
+- getLogs() - Get all logs
+- clearLogs() - Clear all logs
+
+SOCKET.IO INTEGRATION:
+socket.on('connect', () => {
+  networkLogger.setServerConnectionStatus(true);
+  networkLogger.uploadLogs();
+});
+socket.on('disconnect', () => {
+  networkLogger.setServerConnectionStatus(false);
+});
+
+SESSION CONTEXT EXAMPLES:
+
+// Current Inform (Socket.io)
+sessionContextProvider: () => ({
+  userId: socket.userId,  // Required: Used to query
+  handsetId: socket.handset?.id,
+  deviceId ...
+  serviceLocationId ...
+  [key: string]: any  // Allows for any additional context
+})
+
+LOGS WHAT NETWORK EVENTS:
+- connection_change - Network type changed
+- subnet_change - Device moved networks  
+- disconnect/reconnect - Lost/restored connection
+- server_connection_lost/restored - Server unreachable/back
