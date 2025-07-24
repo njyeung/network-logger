@@ -1,6 +1,6 @@
 """
-NetworkLogger Backend - Simple Python Library
-Creates separate JSON files for each client IP in a directory structure
+NetworkLogger Backend
+Creates separate JSON files for each client IP + client ID in a directory structure
 """
 
 import json
@@ -8,42 +8,10 @@ import logging
 import os
 from datetime import datetime
 from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
 
-
-@dataclass
-class NetworkLogEntry:
-    """Network log entry structure (matches frontend)"""
-    timestamp: str
-    eventType: str  # connection_change, subnet_change, disconnect, etc.
-    networkType: Optional[str]
-    isConnected: Optional[bool]
-    isInternetReachable: Optional[bool]
-    serverConnected: Optional[bool] = None
-    additionalInfo: Optional[str] = None
-    
-    # Network details
-    ipAddress: Optional[str] = None
-    subnet: Optional[str] = None
-    previousSubnet: Optional[str] = None
-    
-    # WiFi specific
-    ssid: Optional[str] = None
-    bssid: Optional[str] = None
-    
-    # Cellular specific
-    cellularGeneration: Optional[str] = None
-    
-    # Raw details
-    details: Optional[Dict[str, Any]] = None
-    
-    # Flexible session context from frontend
-    sessionContext: Optional[Dict[str, Any]] = None
-    
-    # Server-added fields
-    server_received_at: Optional[str] = None
-    client_ip: Optional[str] = None
-    device_info: Optional[Dict[str, Any]] = None
+from .models import NetworkLogEntry
+from .helper_functions import get_client_file_path, extract_user_id_from_logs, save_logs_to_file, load_logs_from_file, get_client_log_count
 
 
 class NetworkLoggerBackend:
@@ -61,27 +29,7 @@ class NetworkLoggerBackend:
         if enable_console_logging:
             logging.basicConfig(level=logging.INFO)
     
-    def _get_client_file_path(self, client_ip: str, user_id: Optional[str] = None) -> str:
-        """Get the JSON file path for a specific client IP and optionally user ID"""
-        # Sanitize IP address for filename (replace special chars)
-        safe_ip = client_ip.replace(':', '_').replace('.', '_')
-        
-        # If user_id is available from session context, create user-specific file
-        if user_id:
-            safe_user_id = str(user_id).replace('/', '_').replace('\\', '_')
-            return os.path.join(self.log_directory, f"{safe_ip}_user_{safe_user_id}.json")
-        
-        return os.path.join(self.log_directory, f"{safe_ip}.json")
     
-    def _extract_user_id_from_logs(self, logs_data: List[Dict[str, Any]]) -> Optional[str]:
-        """Extract user ID from session context in logs"""
-
-        for log_data in logs_data:
-            session_context = log_data.get('sessionContext', {})
-
-            if session_context and 'userId' in session_context:
-                return str(session_context['userId'])
-        return None
 
     async def handle_log_upload(self, request_data: Dict[str, Any], client_ip: str) -> Dict[str, Any]:
         """Handle log upload from frontend - saves to client-specific JSON file"""
@@ -90,7 +38,7 @@ class NetworkLoggerBackend:
             logs_data = request_data.get('logs', [])
             device_info = request_data.get('deviceInfo', {})
             
-            user_id = self._extract_user_id_from_logs(logs_data)
+            user_id = extract_user_id_from_logs(logs_data)
             
             # Convert to NetworkLogEntry and add server info
             new_logs = []
@@ -103,10 +51,10 @@ class NetworkLoggerBackend:
                 new_logs.append(log)
             
             # Get client-specific file path
-            client_file = self._get_client_file_path(client_ip, user_id)
+            client_file = get_client_file_path(self.log_directory, client_ip, user_id)
             
             # Save to client's JSON file
-            await self._save_logs_to_file(new_logs, client_file)
+            await save_logs_to_file(new_logs, client_file, self.max_logs, self.logger)
             
             # Console logging
             if self.enable_console_logging:
@@ -117,7 +65,7 @@ class NetworkLoggerBackend:
                 self.logger.info(f"Saved to: {client_file}")
             
             
-            total_stored = await self._get_client_log_count(client_ip)
+            total_stored = await get_client_log_count(self.log_directory, client_ip, self.logger)
             
             return {
                 'success': True,
@@ -137,38 +85,7 @@ class NetworkLoggerBackend:
                 'timestamp': datetime.now().isoformat()
             }
     
-    async def _save_logs_to_file(self, new_logs: List[NetworkLogEntry], file_path: str) -> None:
-        """Save logs to specific JSON file"""
-        try:
-            # Load existing logs from this specific file
-            existing_logs = await self._load_logs_from_file(file_path)
-            
-            # Combine logs (newest first)
-            all_logs = new_logs + existing_logs
-            
-            # Limit logs if needed
-            if len(all_logs) > self.max_logs:
-                all_logs = all_logs[:self.max_logs]
-            
-            # Save to file
-            with open(file_path, 'w') as f:
-                json.dump([asdict(log) for log in all_logs], f, indent=2)
-                
-        except Exception as e:
-            self.logger.error(f"Failed to save logs to {file_path}: {e}")
-            raise
     
-    async def _load_logs_from_file(self, file_path: str) -> List[NetworkLogEntry]:
-        """Load logs from specific JSON file"""
-        try:
-            with open(file_path, 'r') as f:
-                data = json.load(f)
-                return [NetworkLogEntry(**item) for item in data]
-        except FileNotFoundError:
-            return []
-        except Exception as e:
-            self.logger.error(f"Failed to load logs from {file_path}: {e}")
-            return []
     
     async def get_logs_ip(self, client_ip: str, limit: Optional[int] = None) -> List[NetworkLogEntry]:
         """Get logs for specific client IP (all users on that IP)"""
@@ -179,7 +96,7 @@ class NetworkLoggerBackend:
         for filename in os.listdir(self.log_directory):
             if filename.endswith('.json') and filename.startswith(f"{safe_ip}"):
                 file_path = os.path.join(self.log_directory, filename)
-                logs = await self._load_logs_from_file(file_path)
+                logs = await load_logs_from_file(file_path, self.logger)
                 all_logs.extend(logs)
         
         # Sort by timestamp (newest first)
@@ -195,8 +112,8 @@ class NetworkLoggerBackend:
         
         if client_ip and user_id:
             # Clear logs for specific client IP and user ID
-            client_file = self._get_client_file_path(client_ip, user_id)
-            logs = await self._load_logs_from_file(client_file)
+            client_file = get_client_file_path(self.log_directory, client_ip, user_id)
+            logs = await load_logs_from_file(client_file, self.logger)
             count = len(logs)
             
             with open(client_file, 'w') as f:
@@ -214,7 +131,7 @@ class NetworkLoggerBackend:
             for filename in os.listdir(self.log_directory):
                 if filename.endswith('.json') and filename.startswith(f"{safe_ip}"):
                     file_path = os.path.join(self.log_directory, filename)
-                    logs = await self._load_logs_from_file(file_path)
+                    logs = await load_logs_from_file(file_path, self.logger)
                     count += len(logs)
                     
                     with open(file_path, 'w') as f:
@@ -231,7 +148,7 @@ class NetworkLoggerBackend:
             for filename in os.listdir(self.log_directory):
                 if filename.endswith('.json') and f'_user_{user_id}' in filename:
                     file_path = os.path.join(self.log_directory, filename)
-                    logs = await self._load_logs_from_file(file_path)
+                    logs = await load_logs_from_file(file_path, self.logger)
                     count += len(logs)
                     
                     with open(file_path, 'w') as f:
@@ -247,7 +164,7 @@ class NetworkLoggerBackend:
             for filename in os.listdir(self.log_directory):
                 if filename.endswith('.json'):
                     file_path = os.path.join(self.log_directory, filename)
-                    logs = await self._load_logs_from_file(file_path)
+                    logs = await load_logs_from_file(file_path, self.logger)
                     total_count += len(logs)
                     
                     with open(file_path, 'w') as f:
@@ -258,11 +175,6 @@ class NetworkLoggerBackend:
             
             return total_count
     
-    async def _get_client_log_count(self, client_ip: str) -> int:
-        """Get log count for specific client"""
-        client_file = self._get_client_file_path(client_ip)
-        logs = await self._load_logs_from_file(client_file)
-        return len(logs)
     
     async def get_total_log_count(self) -> int:
         """Get total log count across all clients"""
@@ -270,7 +182,7 @@ class NetworkLoggerBackend:
         for filename in os.listdir(self.log_directory):
             if filename.endswith('.json'):
                 file_path = os.path.join(self.log_directory, filename)
-                logs = await self._load_logs_from_file(file_path)
+                logs = await load_logs_from_file(file_path, self.logger)
                 total_count += len(logs)
         return total_count
     
@@ -281,7 +193,7 @@ class NetworkLoggerBackend:
         for filename in os.listdir(self.log_directory):
             if filename.endswith('.json') and f'_user_{user_id}' in filename:
                 file_path = os.path.join(self.log_directory, filename)
-                logs = await self._load_logs_from_file(file_path)
+                logs = await load_logs_from_file(file_path, self.logger)
                 user_logs.extend(logs)
         
         # Sort by timestamp (newest first)
@@ -299,7 +211,7 @@ class NetworkLoggerBackend:
         for filename in os.listdir(self.log_directory):
             if filename.endswith('.json'):
                 file_path = os.path.join(self.log_directory, filename)
-                logs = await self._load_logs_from_file(file_path)
+                logs = await load_logs_from_file(file_path, self.logger)
 
                 for log in logs:
                     if not log.sessionContext or session_field not in log.sessionContext:
