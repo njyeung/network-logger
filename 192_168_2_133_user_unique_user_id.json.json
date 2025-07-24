@@ -1,0 +1,74 @@
+[
+  {
+    "timestamp": "2025-07-24T16:02:05.145Z",
+    "eventType": "server_connection_restored",
+    "networkType": "wifi",
+    "isConnected": true,
+    "isInternetReachable": true,
+    "serverConnected": true,
+    "additionalInfo": null,
+    "ipAddress": "10.0.2.16",
+    "subnet": "10.0.2",
+    "previousSubnet": null,
+    "ssid": "unknown",
+    "bssid": "02:00:00:00:00:00",
+    "cellularGeneration": null,
+    "details": {
+      "isConnectionExpensive": false,
+      "txLinkSpeed": 1,
+      "rxLinkSpeed": 2,
+      "linkSpeed": 1,
+      "subnet": "255.255.255.0",
+      "ipAddress": "10.0.2.16",
+      "frequency": 2447,
+      "strength": 99,
+      "bssid": "02:00:00:00:00:00"
+    },
+    "sessionContext": {
+      "userId": "unique_user_id",
+      "sessionId": "session id"
+    },
+    "server_received_at": "2025-07-24T16:02:06.027691",
+    "client_ip": "192.168.2.133",
+    "device_info": {
+      "timestamp": "2025-07-24T16:02:05.148Z",
+      "platform": "mobile"
+    }
+  },
+  {
+    "timestamp": "2025-07-24T16:02:05.125Z",
+    "eventType": "connection_change",
+    "networkType": "wifi",
+    "isConnected": true,
+    "isInternetReachable": true,
+    "serverConnected": false,
+    "additionalInfo": "Initial network state",
+    "ipAddress": "10.0.2.16",
+    "subnet": "10.0.2",
+    "previousSubnet": null,
+    "ssid": "unknown",
+    "bssid": "02:00:00:00:00:00",
+    "cellularGeneration": null,
+    "details": {
+      "isConnectionExpensive": false,
+      "txLinkSpeed": 1,
+      "rxLinkSpeed": 2,
+      "linkSpeed": 1,
+      "subnet": "255.255.255.0",
+      "ipAddress": "10.0.2.16",
+      "frequency": 2447,
+      "strength": 99,
+      "bssid": "02:00:00:00:00:00"
+    },
+    "sessionContext": {
+      "userId": "unique_user_id",
+      "sessionId": "session id"
+    },
+    "server_received_at": "2025-07-24T16:02:06.027718",
+    "client_ip": "192.168.2.133",
+    "device_info": {
+      "timestamp": "2025-07-24T16:02:05.148Z",
+      "platform": "mobile"
+    }
+  }
+]
