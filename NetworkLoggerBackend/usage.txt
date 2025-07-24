@@ -1,0 +1,47 @@
+NETWORKLOGGER BACKEND - Client IP Separation
+
+SETUP:
+Just copy network_logger.py models.py, and helper_functions.py to your project
+
+BASIC USAGE:
+from network_logger import NetworkLogger
+
+# Create logger - specify directory for client IP files  
+network_logger = NetworkLoggerBackend(
+    log_directory="./network_logs",    # Directory for all client files
+    max_logs=100,                     # Max logs per client
+    enable_console_logging=True        # Print to console
+)
+
+# In your HTTP handler
+async def handle_network_logs(request):
+    data = await request.json()
+    client_ip = request.remote
+    
+    result = await network_logger.handle_log_upload(data, client_ip)
+    return web.json_response(result)
+
+DIRECTORY STRUCTURE:
+./network_logs/
+├── 192_168_1_100.json           # Client 192.168.1.100 logs (no session context)
+├── 192_168_1_101_user_123.json  # Client 192.168.1.101 - User ID 123
+├── 10_0_2_15_user_456.json      # Client 10.0.2.15 - User ID 456
+└── ...
+
+METHODS:
+- handle_log_upload(data, client_ip) - Save to client-specific JSON file
+- get_logs_ip(client_ip=None, limit=None) - Get logs (all clients or specific)
+- get_logs_user(user_id, limit=None) - Get all logs for specific userId (specified in sessionContext)
+- clear_logs(client_ip=None) - Clear logs (all or specific client)
+- get_total_log_count() - Get total logs across all clients
+- network_logger.get_logs_session_context("handsetId", "456")
+
+BENEFITS:
+- Easy to debug individual devices
+- IT can quickly find problematic clients  
+- Separate files prevent large JSON issues
+- Client IP tracking built-in
+
+PLUG INTO YOUR SERVER:
+result = await network_logger.handle_log_upload(data, client_ip)
+# Automatically creates client-specific JSON files
