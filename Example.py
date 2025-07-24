@@ -3,7 +3,7 @@ import logging
 import socketio
 from aiohttp import web, web_request
 from aiohttp_cors import setup as cors_setup, ResourceOptions
-from network_logger import NetworkLoggerBackend
+from NetworkLoggerBackend.network_logger import NetworkLogger
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 sio = socketio.AsyncServer(cors_allowed_origins="*")
 
 # Create NetworkLogger
-network_logger = NetworkLoggerBackend(
+network_logger = NetworkLogger(
     log_directory="./network_logs",
     max_logs=10,
     enable_console_logging=True

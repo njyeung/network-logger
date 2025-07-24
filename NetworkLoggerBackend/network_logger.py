@@ -9,12 +9,11 @@ import os
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from dataclasses import asdict
-
 from .models import NetworkLogEntry
 from .helper_functions import get_client_file_path, extract_user_id_from_logs, save_logs_to_file, load_logs_from_file, get_client_log_count
 
 
-class NetworkLoggerBackend:
+class NetworkLogger:
     """Backend logger that creates separate JSON files per client IP"""
     
     def __init__(self, log_directory: str = "./network_logs", max_logs: int = 100, enable_console_logging: bool = True):
